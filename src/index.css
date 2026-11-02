@@ -1,0 +1,42 @@
+@import "tailwindcss";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/barlow-condensed/600.css";
+
+/* Grafito frío + ámbar de lámpara minera. Alto contraste para interior mina. */
+@theme {
+  --color-bg: #0c1013;
+  --color-surface: #141a1f;
+  --color-raise: #1c242b;
+  --color-line: #2b353e;
+  --color-ink: #e9eef1;
+  --color-muted: #94a0ab;
+  --color-accent: #f3a83b;
+  --color-accent-ink: #1a1206;
+  --color-good: #5cc98a;
+  --color-bad: #ef6a5a;
+  --color-z-arranque: #ff7a59;
+  --color-z-ayudas: #f2cf5b;
+  --color-z-hastiales: #4fc1cc;
+  --color-z-corona: #7ea7ff;
+  --color-z-arrastres: #b98cff;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font-family: var(--font-sans); -webkit-tap-highlight-color: transparent;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+:root { color-scheme: dark; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+input, select, textarea { font: inherit; }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.no-scrollbar{scrollbar-width:none}.no-scrollbar::-webkit-scrollbar{display:none}
