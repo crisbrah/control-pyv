@@ -1,0 +1,31 @@
+# Compila el APK en los servidores de GitHub (gratis). No necesitas Android Studio.
+# Uso: pestaña Actions → "Compilar APK" → Run workflow → al terminar, descarga "control-pyv-apk".
+name: Compilar APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Variables de Supabase
+        run: |
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" > .env
+          echo "VITE_SUPABASE_KEY=${{ secrets.VITE_SUPABASE_KEY }}" >> .env
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap add android && npx cap sync android
+      - name: Compilar APK de prueba
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: control-pyv-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

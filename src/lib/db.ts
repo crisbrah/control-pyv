@@ -19,7 +19,7 @@ class LocalDB extends Dexie {
   outbox!: Table<OutboxItem, number>;
   meta!: Table<Meta, string>;
   constructor() {
-    super('control-pyv');
+    super(import.meta.env.VITE_DEMO === '1' ? 'control-pyv-demo' : 'control-pyv');
     this.version(1).stores({
       labores: 'id, unidad_id', secciones: 'id, unidad_id', productos: 'id, unidad_id', clases_roca: 'id, unidad_id',
       plantillas_checklist: 'id, unidad_id', estandares: 'id, unidad_id, seccion_id',
@@ -51,4 +51,12 @@ export async function guardar<T extends { id: string }>(tabla: Tabla, row: T) {
 /** Pide al navegador que no borre la base local (Android/Chrome) */
 export async function pedirPersistencia() {
   try { return await navigator.storage?.persist?.() } catch { return false }
+}
+
+/** Serializa lecturas-modificación-escrituras para que ediciones rápidas no se pisen */
+let cadena: Promise<unknown> = Promise.resolve();
+export function enCola<T>(fn: () => Promise<T>): Promise<T> {
+  const r = cadena.then(fn, fn);
+  cadena = r.catch(() => undefined);
+  return r;
 }

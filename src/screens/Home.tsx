@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, CloudOff, LogOut, Plus, RefreshCw, TriangleAlert, CheckCircle2 } from 'lucide-react';
+import { BarChart3, CheckSquare, ChevronRight, CloudOff, LogOut, Plus, RefreshCw, Settings, Square, TriangleAlert, CheckCircle2, X } from 'lucide-react';
 import { db, guardar, uuid } from '../lib/db';
 import { kpiDisparo, media } from '../lib/calc';
 import { descartarError, reintentarErrores, sincronizar } from '../lib/sync';
-import { puedeCrear, type Disparo, type Membresia } from '../lib/types';
+import { puedeCrear, puedeDisenar, type Disparo, type Membresia } from '../lib/types';
 import { useCatalogo, useOnline, useSync } from '../hooks';
 import { Button, Pill, Stat, cx, fmt } from '../ui';
 
@@ -30,7 +30,10 @@ export function SyncChip({ unidadId, compact }: { unidadId: string; compact?: bo
   </button>;
 }
 
-export function Home({ m, onOpen, onLogout, onCambiarUnidad, multi }: { m: Membresia; onOpen: (id: string) => void; onLogout: () => void; onCambiarUnidad: () => void; multi: boolean }) {
+export function Home({ m, onOpen, onLogout, onCambiarUnidad, multi, onAnalizar, onAdmin }: { m: Membresia; onOpen: (id: string) => void; onLogout: () => void; onCambiarUnidad: () => void; multi: boolean; onAnalizar: (ids: string[]) => void; onAdmin: () => void }) {
+  const [selMode, setSelMode] = useState(false);
+  const [sel, setSel] = useState<string[]>([]);
+  const toggle = (id: string) => setSel((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
   const u = m.unidad;
   const cat = useCatalogo(u.id);
   const [filtro, setFiltro] = useState<'abiertos' | 'cerrados' | 'todos'>('todos');
@@ -66,13 +69,14 @@ export function Home({ m, onOpen, onLogout, onCambiarUnidad, multi }: { m: Membr
   }
   const [msg, alertMsg] = useState<string | null>(null);
 
-  return <div className="min-h-full pb-28">
+  return <div className="min-h-full pb-44">
     <header className="sticky top-0 z-10 bg-bg/95 backdrop-blur border-b border-line px-4 py-3 flex items-center gap-3">
       <button onClick={multi ? onCambiarUnidad : undefined} className="min-w-0 text-left flex-1">
         <div className="font-display text-[24px] leading-tight font-semibold truncate">{u.nombre}</div>
         <div className="text-[12.5px] text-muted capitalize">{m.rol}{u.es_demo && ' · datos simulados'}{multi && ' · cambiar'}</div>
       </button>
       <SyncChip unidadId={u.id} />
+      {puedeDisenar(m.rol) && <button aria-label="Administración" onClick={onAdmin} className="size-10 grid place-items-center rounded-lg border border-line text-muted"><Settings size={18} /></button>}
       <button aria-label="Cerrar sesión" onClick={onLogout} className="size-10 grid place-items-center rounded-lg border border-line text-muted"><LogOut size={18} /></button>
     </header>
 
@@ -84,10 +88,14 @@ export function Home({ m, onOpen, onLogout, onCambiarUnidad, multi }: { m: Membr
         <Stat label="Eficiencia" value={fmt(efMedio)} unit="%" sub={u.config?.meta_eficiencia ? `meta ≥ ${u.config.meta_eficiencia}` : undefined} />
       </section>
 
-      <div className="flex gap-2" role="group" aria-label="Filtro">
+      <div className="flex gap-2 flex-wrap" role="group" aria-label="Filtro">
         {(['todos', 'abiertos', 'cerrados'] as const).map((f) => <button key={f} aria-pressed={filtro === f} onClick={() => setFiltro(f)}
           className={cx('h-10 px-4 rounded-full text-[14px] font-medium border capitalize', filtro === f ? 'bg-ink text-bg border-ink' : 'border-line text-muted')}>{f}</button>)}
+        <button onClick={() => { setSelMode(!selMode); setSel([]); }} aria-pressed={selMode}
+          className={cx('h-10 px-4 rounded-full text-[14px] font-medium border ml-auto inline-flex items-center gap-1.5', selMode ? 'border-accent text-accent' : 'border-line text-muted')}>
+          {selMode ? <><X size={16} />Cancelar</> : <><BarChart3 size={16} />Analizar</>}</button>
       </div>
+      {selMode && <p className="text-[13px] text-accent">Toca las voladuras a comparar (recomendado 3 o más de la misma sección).</p>}
 
       {msg && <div role="alert" className="text-bad text-sm">{msg}</div>}
       <ErroresSync unidadId={u.id} />
@@ -98,7 +106,9 @@ export function Home({ m, onOpen, onLogout, onCambiarUnidad, multi }: { m: Membr
           const lab = cat.labores.find((l) => l.id === d.labor_id);
           const okFc = k.fc != null && meta ? k.fc <= meta : null;
           return <li key={d.id}>
-            <button onClick={() => onOpen(d.id)} className="w-full text-left bg-surface border border-line rounded-xl px-4 py-3 flex items-center gap-3 active:bg-raise">
+            <button onClick={() => (selMode ? toggle(d.id) : onOpen(d.id))} aria-pressed={selMode ? sel.includes(d.id) : undefined}
+              className={cx('w-full text-left bg-surface border rounded-xl px-4 py-3 flex items-center gap-3 active:bg-raise', selMode && sel.includes(d.id) ? 'border-accent' : 'border-line')}>
+              {selMode && (sel.includes(d.id) ? <CheckSquare size={22} className="text-accent shrink-0" /> : <Square size={22} className="text-muted shrink-0" />)}
               <div className={cx('w-1 self-stretch rounded-full', okFc === null ? 'bg-line' : okFc ? 'bg-good' : 'bg-bad')} />
               <div className="flex-1 min-w-0 grid gap-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -112,14 +122,16 @@ export function Home({ m, onOpen, onLogout, onCambiarUnidad, multi }: { m: Membr
                 <div className="num text-[19px]">{fmt(k.fc)}<span className="text-[12px] text-muted"> kg/m</span></div>
                 <div className="num text-[12.5px] text-muted">{fmt(k.eficiencia)} % · {fmt(k.kg, 0)} kg</div>
               </div>
-              <ChevronRight size={18} className="text-muted" />
+              {!selMode && <ChevronRight size={18} className="text-muted" />}
             </button>
           </li>;
         })}
       </ul>
     </main>
 
-    {puedeCrear(m.rol) && <div className="fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-bg via-bg/90 to-transparent">
+    {selMode ? <div className="fixed bottom-16 inset-x-0 p-4 pb-3 bg-gradient-to-t from-bg via-bg/90 to-transparent">
+      <Button disabled={sel.length < 2} onClick={() => onAnalizar(sel)} className="w-full max-w-3xl mx-auto flex h-14 text-[17px]"><BarChart3 size={22} />Analizar {sel.length} voladuras</Button>
+    </div> : puedeCrear(m.rol) && <div className="fixed bottom-16 inset-x-0 p-4 pb-3 bg-gradient-to-t from-bg via-bg/90 to-transparent">
       <Button onClick={nuevo} className="w-full max-w-3xl mx-auto flex h-14 text-[17px]"><Plus size={22} />Nuevo disparo</Button>
     </div>}
   </div>;

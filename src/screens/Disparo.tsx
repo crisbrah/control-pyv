@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, ChevronLeft, ChevronRight, Lock, TriangleAlert, CheckCircle2 } from 'lucide-react';
-import { db, guardar, uuid } from '../lib/db';
+import { ArrowLeft, ChevronLeft, ChevronRight, FileDown, Lock, TriangleAlert, CheckCircle2 } from 'lucide-react';
+import { guardarPdf, reporteDisparo } from '../lib/pdf';
+import { db, enCola, guardar, uuid } from '../lib/db';
 import { alertas, clasificar, desviacion, disenoPorZona, estadoSugerido, kgDe, kpiDisparo } from '../lib/calc';
 import { ZONAS, ZONA_NOMBRE, puedeCerrar, puedeEditar, type CargaZona, type Disparo as D, type Membresia, type Movimiento, type Respuesta, type Zona } from '../lib/types';
 import { useCatalogo, type Catalogo } from '../hooks';
@@ -25,13 +26,16 @@ export function Disparo({ id, m, onBack }: { id: string; m: Membresia; onBack: (
   if (!d) return <p className="p-6 text-muted">Cargando…</p>;
 
   const editable = puedeEditar(m.rol, d.estado);
-  const set = async (patch: Partial<D>) => {
+  const set = (patch: Partial<D>) => enCola(async () => {
     if (!editable) return;
-    const next = { ...d, ...patch };
-    next.estado = estadoSugerido(next, carga.some((c) => c.cantidad > 0));
+    // leer siempre lo último guardado: evita que ediciones rápidas se pisen entre sí
+    const cur = (await db.disparos.get(id)) ?? d;
+    const hay = (await db.carga_zona.where('disparo_id').equals(id).toArray()).some((c) => c.cantidad > 0);
+    const next = { ...cur, ...patch };
+    next.estado = estadoSugerido(next, hay);
     if (patch.estado === 'cerrado') next.estado = 'cerrado';
     await guardar('disparos', next);
-  };
+  });
   const tol = u.config?.tolerancia_carga ?? 5;
   const k = kpiDisparo(d, cat.secciones.find((s) => s.id === d.seccion_id), carga, movs, cat.prodMap, est?.kg_disparo ?? null, resp);
   const props = { d, set, editable, cat, carga, movs, resp, diseno, tol, m };
@@ -142,10 +146,10 @@ function PasoPerforacion({ d, set, editable }: P) {
 /** Contadores por producto para movimientos (despacho o devolución) */
 function Movs({ d, movs, cat, editable, tipo, soloCon }: P & { tipo: 'despacho' | 'devolucion'; soloCon?: Set<string> }) {
   const prods = cat.productos.filter((p) => p.activo && (!soloCon || soloCon.has(p.id)));
-  const setQ = async (pid: string, q: number) => {
-    const ex = movs.find((x) => x.tipo === tipo && x.producto_id === pid);
+  const setQ = (pid: string, q: number) => enCola(async () => {
+    const ex = (await db.movimientos_explosivo.where('disparo_id').equals(d.id).toArray()).find((x) => x.tipo === tipo && x.producto_id === pid);
     await guardar('movimientos_explosivo', ex ? { ...ex, cantidad: q } : { id: uuid(), unidad_id: d.unidad_id, disparo_id: d.id, tipo, producto_id: pid, cantidad: q });
-  };
+  });
   if (!prods.length) return <p className="text-muted text-sm">{soloCon ? 'No hay productos despachados.' : 'No hay productos en el catálogo.'}</p>;
   return <ul className="grid gap-2">{prods.map((p) => {
     const q = Number(movs.find((x) => x.tipo === tipo && x.producto_id === p.id)?.cantidad ?? 0);
@@ -176,12 +180,13 @@ function PasoCarguio(p: P) {
   const productosZona = Array.from(new Set([...(dz?.lineas.map((l) => l.producto_id) ?? []), ...lineasZona.map((c) => c.producto_id)]));
   const explosivos = cat.productos.filter((x) => x.kg_unidad != null && x.activo);
 
-  const setQ = async (pid: string, q: number) => {
-    const ex = lineasZona.find((c) => c.producto_id === pid);
+  const setQ = (pid: string, q: number) => enCola(async () => {
+    const ex = (await db.carga_zona.where('disparo_id').equals(d.id).toArray()).find((c) => c.zona === zona && c.producto_id === pid);
     const atacado = dz?.lineas.find((l) => l.producto_id === pid)?.atacado ?? null;
     await guardar('carga_zona', ex ? { ...ex, cantidad: q } : { id: uuid(), unidad_id: d.unidad_id, disparo_id: d.id, zona, producto_id: pid, cantidad: q, atacado });
-    if (q > 0 && (d.estado === 'borrador' || d.estado === 'perforado')) await guardar('disparos', { ...d, estado: 'cargado' });
-  };
+    const cur = await db.disparos.get(d.id);
+    if (cur && q > 0 && (cur.estado === 'borrador' || cur.estado === 'perforado')) await guardar('disparos', { ...cur, estado: 'cargado' });
+  });
   const kgZona = (z: Zona) => kgDe(carga.filter((c) => c.zona === z), cat.prodMap).kg;
   const totalReal = kgDe(carga, cat.prodMap).kg;
   const totalDis = Object.values(diseno).reduce((a, z) => a + (z?.kg ?? 0), 0);
@@ -269,10 +274,10 @@ function PasoResultado(p: P) {
 function PasoChecklist({ d, resp, cat, editable }: P) {
   const pl = cat.plantillas[0];
   if (!pl) return <Section title="Checklist"><p className="text-muted">La unidad no tiene una plantilla de checklist vigente.</p></Section>;
-  const setR = async (codigo: string, cumple: boolean | null) => {
-    const ex = resp.find((r) => r.item_codigo === codigo);
+  const setR = (codigo: string, cumple: boolean | null) => enCola(async () => {
+    const ex = (await db.checklist_respuestas.where('disparo_id').equals(d.id).toArray()).find((r) => r.item_codigo === codigo);
     await guardar('checklist_respuestas', ex ? { ...ex, cumple } : { id: uuid(), unidad_id: d.unidad_id, disparo_id: d.id, item_codigo: codigo, cumple });
-  };
+  });
   return <Section title="Checklist de control" sub={pl.nombre}>
     <ul className="grid gap-3">{pl.items.map((it) => {
       const r = resp.find((x) => x.item_codigo === it.codigo);
@@ -318,6 +323,13 @@ function PasoCierre(p: P & { k: ReturnType<typeof kpiDisparo> }) {
       {al.map((a, i) => <p key={i} className={cx('flex gap-2 text-[14px]', a.nivel === 'error' ? 'text-bad' : 'text-accent')}><TriangleAlert size={18} className="shrink-0 mt-0.5" />{a.texto}</p>)}
       {d.calidad?.length ? <p className="text-[12.5px] text-muted">Calidad del dato: {d.calidad.join(' · ')}</p> : null}
     </Card>
+    <Button variant="ghost" className="h-14 text-[16px]" onClick={() => {
+      const est = p.cat.estandares.find((e) => e.id === d.estandar_id);
+      const doc = reporteDisparo({ unidad: m.unidad.nombre, labor: p.cat.labores.find((l) => l.id === d.labor_id)?.codigo ?? '—', seccion: p.cat.secciones.find((s) => s.id === d.seccion_id)?.nombre ?? '—',
+        estandar: est ? `${est.metodo} v${est.version} (${est.kg_disparo} kg)` : null, d, k, tol, meta: m.unidad.config?.meta_fc, carga: p.carga, movs: p.movs, resp: p.resp,
+        plantilla: p.cat.plantillas[0], prods: p.cat.prodMap, diseno: p.diseno as never, alertas: al });
+      guardarPdf(doc, `voladura-${d.numero_voladura}-${d.fecha}.pdf`);
+    }}><FileDown size={20} />Descargar reporte PDF</Button>
     {d.estado !== 'cerrado' && <Card className="grid gap-3">
       {d.avance == null && <p className="text-accent text-sm">Falta el avance medido (etapa Resultado).</p>}
       {!puedeCerrar(m.rol) && <p className="text-muted text-sm">Solo el supervisor o ingeniería pueden cerrar el disparo.</p>}

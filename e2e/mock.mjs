@@ -6,16 +6,16 @@ export const data = {
   labores: [b({ id: 'l-cx400', codigo: 'CX-400', zona: 'Santa Rosa', tipo: 'crucero' })],
   secciones: [b({ id: 's-350', nombre: '3.50 x 3.50 negativo', ancho: 3.5, alto: 3.5, flecha: 0.5, sentido: 'negativo', area: 11.67 })],
   productos: [
-    b({ id: E1, nombre: 'Emulnor 1000 1¼"x12"', categoria: 'emulsion', unidad_medida: 'cartucho', kg_unidad: 0.25, activo: true }),
-    b({ id: E3, nombre: 'Emulnor 3000 1¼"x12"', categoria: 'emulsion', unidad_medida: 'cartucho', kg_unidad: 0.26596, activo: true }),
-    b({ id: E5, nombre: 'Emulnor 5000 1¼"x12"', categoria: 'emulsion', unidad_medida: 'cartucho', kg_unidad: 0.26596, activo: true }),
+    b({ id: E1, nombre: 'Emulnor 1000 1¼"x12"', categoria: 'emulsion', unidad_medida: 'cartucho', kg_unidad: 0.25, activo: true, densidad: 1.13, potencia_rel_anfo: 0.85, largo_mm: 304.8 }),
+    b({ id: E3, nombre: 'Emulnor 3000 1¼"x12"', categoria: 'emulsion', unidad_medida: 'cartucho', kg_unidad: 0.26596, activo: true, densidad: 1.14, potencia_rel_anfo: 1.0, largo_mm: 304.8 }),
+    b({ id: E5, nombre: 'Emulnor 5000 1¼"x12"', categoria: 'emulsion', unidad_medida: 'cartucho', kg_unidad: 0.26596, activo: true, densidad: 1.16, potencia_rel_anfo: 1.05, largo_mm: 304.8 }),
     b({ id: 'p-fanel', nombre: 'Fanel LP 4.8 m', categoria: 'iniciador', unidad_medida: 'unidad', kg_unidad: null, activo: true }),
   ],
   clases_roca: [['III A', 51, 60], ['III B', 41, 50], ['II', 61, 80]].map(([c, a, z]) => b({ id: 'c-' + c, sistema: 'RMR', clase: c, valor_min: a, valor_max: z })),
   plantillas_checklist: [b({ id: 'pl1', nombre: 'Control de ejecución CX-400 v1', vigente: true, items: [
     { codigo: 'A.I.1-3a', texto: 'Malla marcada en el frente según el estándar' }, { codigo: 'A.I.1-6', texto: 'Retardos según el estándar' },
     { codigo: 'A.I.1-7', texto: 'Taco de arcilla en todos los taladros' }, { codigo: 'SEG-1', texto: 'Verificación de tiros fallados' }] })],
-  estandares: [b({ id: 'est1', seccion_id: 's-350', version: 1, metodo: 'Holmberg', vigente: false, kg_disparo: 105.3, avance_esperado: 3.86, receta: {
+  estandares: [b({ id: 'est1', seccion_id: 's-350', version: 1, metodo: 'Holmberg', vigente: false, kg_disparo: 105.3, avance_esperado: 3.86, parametros: { broca_mm: { valor: 45, fuente: 'supuesto' }, rimado_mm: { valor: 102, fuente: 'supuesto' }, rimados_n: { valor: 4, fuente: 'dato' }, H: { valor: 4.06, fuente: 'dato' } }, receta: {
     arranque: { taladros: 16, productos: [{ id: E5, cantidad: 11 }] },
     ayudas: { taladros: 7, productos: [{ id: E5, cantidad: 7, atacado: true }, { id: E1, cantidad: 7 }] },
     hastiales: { taladros: 8, productos: [{ id: E5, cantidad: 1 }, { id: E1, cantidad: 2, cana: true }] },

@@ -2,11 +2,45 @@
 
 App móvil y web para registrar el ciclo completo de cada disparo de avance (diseño → perforación → vale → carguío → resultado → devolución → checklist → cierre). Funciona sin señal y sincroniza con Supabase. Sirve para varias minas: cada unidad tiene sus catálogos, clases de roca, metas y checklist.
 
+## Administración (ícono de engranaje en Inicio; ingeniero y admin)
+- **Secciones, labores y explosivos**: crear, editar y desactivar. Funciona sin señal y se sincroniza.
+- **Usuarios** (solo admin, con señal): la persona crea su cuenta en la app ("Crear cuenta") y el admin le asigna un rol con su correo.
+  Requiere ejecutar UNA vez `supabase/04_admin.sql` en el SQL Editor de Supabase.
+
+## Reportes y análisis
+- **Reporte de voladura (PDF)**: en la etapa Cierre de cada disparo. Indicadores, macizo, perforación, carga por zona frente al estándar, conciliación, resultado, checklist y alertas.
+- **Análisis de varias voladuras**: en Inicio pulsa "Analizar", marca 2 o más (recomendado 3+ de la misma sección) y pulsa "Analizar N voladuras".
+  Incluye conclusiones automáticas, estadísticos, comparación con la línea base, descomposición carga/avance, gráfico de control I-MR, carga frente a avance,
+  cumplimiento por zona y prueba U de Mann-Whitney. Se descarga en PDF.
+- En el celular, el PDF se abre con el menú Compartir (WhatsApp, correo, Drive).
+
+## Diseño de malla (pestaña Diseño)
+Modelo de Holmberg (López Jimeno et al., 1995), verificado con el caso CX-400 (44 taladros, 403 cartuchos, 105.3 kg, 14.45 kg máx. por retardo).
+- Parámetros editables marcados como dato o supuesto; explosivos del catálogo de la mina.
+- Malla 2D con forma y color por zona, rimados y número de retardo; animación de la secuencia LP 1–16; carga por retardo.
+- Avisos: arranque que limita el avance, carga del arranque bajo la mínima, burden negativo.
+- Ingeniería guarda el diseño como estándar (propuesto o vigente). Los disparos nuevos usan el vigente.
+
+## Simulador (pestaña Simulador)
+Estimación de tres puntos (PMBOK) con distribución Beta-PERT + Monte Carlo en dos niveles.
+- Variables: calibración sobre el diseño, eficiencia de avance, variabilidad de carga y de avance; cada una con optimista / más probable / pesimista y la fuente de cada valor.
+- El pesimista por defecto es "nada cambia" (la línea base real).
+- Resultado: FC medio de una campaña de validación (10 disparos por defecto) en P10 / P50 / P90, probabilidad de cumplir la meta, tornado de sensibilidad y máxima calibración admisible.
+- La línea base sale de los disparos reales cerrados de la sección sin estándar aplicado. Todo rotulado como SIMULACIÓN.
+
 ## Requisitos
 - Node.js 22 o superior
 - Para el APK: Android Studio (incluye el JDK y el SDK de Android)
 
-## Probar en la PC (5 minutos)
+## Probar en la PC sin servidor (modo demo)
+```bash
+npm install
+npm run demo
+```
+Abre http://localhost:5173 y entra con **cualquier correo y contraseña**. Simula Supabase dentro del navegador con los 9 disparos del CX-400, el catálogo FAMESA y el estándar Holmberg. Para probar sin señal: F12 → pestaña Network → "Offline".
+Los datos del demo viven solo en ese navegador y no se mezclan con los reales.
+
+## Probar en la PC con Supabase real
 ```bash
 npm install
 npm run dev
@@ -36,7 +70,7 @@ Después de cada cambio en el código: `npm run android` y vuelve a compilar en 
 
 ## Pruebas
 ```bash
-npm test        # motor de indicadores (11 pruebas)
+npm test        # indicadores, Holmberg, simulación y análisis (46 pruebas)
 npm run e2e     # flujo completo con Supabase simulado (requiere Playwright)
 ```
 

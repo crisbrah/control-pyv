@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from './lib/supabase';
+import { DEMO, supabase } from './lib/supabase';
 import { db, getMembresias, getMeta, pedirPersistencia, setMeta } from './lib/db';
 import { cargarMembresias, contarPendientes, sincronizar } from './lib/sync';
 import type { Membresia } from './lib/types';
 import { Login } from './screens/Login';
 import { Home } from './screens/Home';
 import { Disparo } from './screens/Disparo';
+import { Simulador } from './screens/Simulador';
+import { Diseno } from './screens/Diseno';
+import { Analisis } from './screens/Analisis';
+import { Admin } from './screens/Admin';
+import { ClipboardList, FlaskConical, Grid3x3 } from 'lucide-react';
 import { Button, Card, Pill } from './ui';
 
 export default function App() {
@@ -14,6 +19,9 @@ export default function App() {
   const [mems, setMems] = useState<Membresia[] | null>(null);
   const [unidadId, setUnidadId] = useState<string | null>(null);
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [analisis, setAnalisis] = useState<string[] | null>(null);
+  const [admin, setAdmin] = useState(false);
+  const [tab, setTab] = useState<'disparos' | 'diseno' | 'simulador'>('disparos');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,7 +80,21 @@ export default function App() {
   </Centro>;
 
   if (abierto) return <Disparo id={abierto} m={m} onBack={() => setAbierto(null)} />;
-  return <Home m={m} multi={mems.length > 1} onOpen={setAbierto} onLogout={salir} onCambiarUnidad={() => setUnidadId(null)} />;
+  if (analisis) return <Analisis m={m} ids={analisis} onBack={() => setAnalisis(null)} />;
+  if (admin) return <Admin m={m} onBack={() => setAdmin(false)} />;
+  return <>
+    {DEMO && <div className="bg-accent text-accent-ink text-center text-[12px] font-semibold py-1">MODO DEMO LOCAL · sin servidor</div>}
+    {tab === 'disparos'
+      ? <Home m={m} multi={mems.length > 1} onOpen={setAbierto} onAnalizar={setAnalisis} onAdmin={() => setAdmin(true)} onLogout={salir} onCambiarUnidad={() => setUnidadId(null)} />
+      : tab === 'diseno' ? <Diseno m={m} /> : <Simulador m={m} />}
+    <nav className="fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-3" aria-label="Secciones"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {([['disparos', 'Disparos', ClipboardList], ['diseno', 'Diseño', Grid3x3], ['simulador', 'Simulador', FlaskConical]] as const).map(([k, l, Icon]) =>
+        <button key={k} onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
+          className={'h-16 flex flex-col items-center justify-center gap-0.5 text-[12.5px] font-medium ' + (tab === k ? 'text-accent' : 'text-muted')}>
+          <Icon size={22} />{l}</button>)}
+    </nav>
+  </>;
 }
 
 const Centro = ({ children }: { children: React.ReactNode }) =>

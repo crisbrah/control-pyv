@@ -67,6 +67,38 @@ try {
   await page.getByRole('button', { name: 'Sincronizar ahora' }).click(); await page.waitForTimeout(800);
   ok(escrituras.length === n, `reenvío no duplica (${n} escrituras, una por fila)`);
   await shot('08-sincronizado');
+
+  // --- diseño ---
+  await page.getByRole('button', { name: 'Diseño' }).click();
+  await page.getByText('Receta por zona').waitFor();
+  let t = await page.locator('main').innerText();
+  ok(/Taladros\s*44/i.test(t) && /105\.[23]/.test(t), 'Diseño Holmberg del CX-400: 44 taladros y 105.3 kg');
+  ok(/M[áa]x\.\/retardo\s*14\.4[45]/i.test(t), 'carga máxima por retardo 14.45 kg');
+  await page.screenshot({ path: 'e2e/10-diseno.png', fullPage: true });
+  await page.getByRole('button', { name: /Secuencia/ }).click(); await page.waitForTimeout(1600);
+  ok(await page.getByText(/^LP [23]$/).count() > 0, 'la secuencia de retardos avanza');
+  await page.screenshot({ path: 'e2e/11-secuencia.png' });
+  await page.getByRole('button', { name: /Detener/ }).click();
+  await page.fill('#p-dRim', '64'); await page.waitForTimeout(200);
+  ok(await page.getByText(/El arranque limita el avance/).count() === 1, 'rimado de 64 mm: aviso de arranque limitante');
+  await page.fill('#p-dRim', '102');
+  const n0 = escrituras.length;
+  await page.getByRole('button', { name: 'Guardar vigente' }).click(); await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Sincronizar ahora' }).click(); await page.waitForTimeout(1500);
+  ok(escrituras.slice(n0).some((e) => e.tabla === 'estandares' && e.body.vigente === true && e.body.version === 2), 'el estándar v2 vigente se envía a Supabase');
+
+  // --- simulador ---
+  await page.getByRole('button', { name: 'Simulador' }).click();
+  await page.getByText('FC medio de la campaña').waitFor();
+  t = await page.locator('main').innerText();
+  ok(/Base real\s*46\.6/i.test(t), 'base del simulador = 46.6 kg/m (solo disparos reales sin estándar)');
+  const p50 = Number((t.match(/M[áa]s probable P50\s*([\d.]+)/i) ?? [])[1]);
+  ok(p50 > 30 && p50 < 42, `P50 de la campaña = ${p50} kg/m`);
+  await page.screenshot({ path: 'e2e/09-simulador.png', fullPage: true });
+  await page.getByLabel('Calibración sobre el diseño m').fill('45');
+  await page.waitForTimeout(300);
+  const p50b = Number(((await page.locator('main').innerText()).match(/M[áa]s probable P50\s*([\d.]+)/i) ?? [])[1]);
+  ok(p50b > p50, `más calibración sube el P50 (${p50} → ${p50b})`);
   console.log(errs.filter((e) => !/fonts|ERR_INTERNET_DISCONNECTED|Failed to load resource/.test(e)).join('\n') || '  sin errores de consola');
 } catch (e) { console.log(e.message); await shot('error'); console.log(errs.join('\n')); }
 await b.close(); srv.kill();

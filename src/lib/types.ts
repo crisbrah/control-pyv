@@ -19,13 +19,14 @@ export interface Labor extends Base { codigo: string; zona?: string | null; tipo
 export interface Seccion extends Base { nombre: string; ancho: number; alto: number; flecha: number | null; sentido: string; area?: number }
 export interface Producto extends Base {
   nombre: string; categoria: string; unidad_medida: string; kg_unidad: number | null; activo: boolean;
+  densidad?: number | null; potencia_rel_anfo?: number | null; largo_mm?: number | null; diametro_mm?: number | null;
 }
 export interface ClaseRoca extends Base { sistema: string; clase: string; valor_min: number; valor_max: number }
 export interface Plantilla extends Base { nombre: string; items: { codigo: string; texto: string }[]; vigente: boolean }
 export interface RecetaLinea { id: string; cantidad: number; atacado?: boolean; cana?: boolean }
 export interface Receta { [zona: string]: { taladros: number; productos: RecetaLinea[] } | number | undefined; taco_m?: number }
 export interface Estandar extends Base {
-  seccion_id: string; version: number; metodo: string; receta: Receta; kg_disparo: number | null;
+  seccion_id: string; version: number; metodo: string; receta: Receta; kg_disparo: number | null; parametros?: Record<string, unknown>;
   avance_esperado: number | null; vigente: boolean;
 }
 
@@ -54,4 +55,5 @@ export type Tabla = typeof TABLAS_CATALOGO[number] | typeof TABLAS_DATOS[number]
 export const puedeCrear = (r: Rol) => r === 'supervisor' || r === 'ingeniero' || r === 'admin';
 export const puedeEditar = (r: Rol, e: Estado) =>
   r === 'ingeniero' || r === 'admin' || ((r === 'supervisor' || r === 'cargador') && e !== 'cerrado');
+export const puedeDisenar = (r: Rol) => r === 'ingeniero' || r === 'admin';
 export const puedeCerrar = (r: Rol) => r === 'supervisor' || r === 'ingeniero' || r === 'admin';

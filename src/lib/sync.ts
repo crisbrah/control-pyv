@@ -12,7 +12,15 @@ addEventListener('outbox-cambio', () => { contarPendientes(); });
 export const onSync = (l: Listener) => { listeners.add(l); l(estado); return () => { listeners.delete(l) } };
 
 // Orden de envío: el padre antes que los hijos
-const ORDEN: Tabla[] = ['disparos', 'carga_zona', 'movimientos_explosivo', 'checklist_respuestas'];
+const ORDEN: Tabla[] = ['labores', 'secciones', 'productos', 'clases_roca', 'plantillas_checklist', 'estandares',
+  'disparos', 'carga_zona', 'movimientos_explosivo', 'checklist_respuestas'];
+// Columnas que calcula el servidor: no se envían
+const CALCULADAS: Partial<Record<Tabla, string[]>> = { secciones: ['area'] };
+const limpiar = (t: Tabla, row: Record<string, unknown>) => {
+  const r = { ...row };
+  for (const c of CALCULADAS[t] ?? []) delete r[c];
+  return r;
+};
 const esRed = (e: { message?: string } | null) => !!e && /fetch|network|Failed to fetch|NetworkError|timeout/i.test(e.message ?? '');
 
 export async function contarPendientes() {
@@ -24,7 +32,7 @@ async function enviar(): Promise<'ok' | 'sin_conexion'> {
   emit({ fase: 'enviando' });
   const items = (await db.outbox.orderBy('seq').toArray()).sort((a, b) => ORDEN.indexOf(a.tabla) - ORDEN.indexOf(b.tabla) || a.seq! - b.seq!);
   for (const it of items) {
-    const { error } = await supabase.from(it.tabla).upsert(it.row, { onConflict: 'id' });
+    const { error } = await supabase.from(it.tabla).upsert(limpiar(it.tabla, it.row), { onConflict: 'id' });
     if (error && esRed(error)) return 'sin_conexion';
     if (error) await db.outbox.update(it.seq!, { intentos: it.intentos + 1, error: `${error.code ?? ''} ${error.message}`.trim() });
     else await db.outbox.delete(it.seq!);
